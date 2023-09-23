@@ -12,9 +12,11 @@ app.use(cors());
 
 const authRouter = require("./routes/auth.routes");
 const factorRouter = require("./routes/factor.routes")
+const emissionRouter = require("./routes/emissions.routes")
 
 app.use("/api/auth", authRouter);
 app.use("/api/factors", factorRouter);
+app.use("/api/emission", emissionRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
