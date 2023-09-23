@@ -22,38 +22,46 @@ const factorController = {
               LEFT JOIN
                 SubSubFactor ssf ON sf.id = ssf.sub_factor_id
             `;
-
             const { rows } = await pool.query(query);
 
-            const data = rows.reduce((acc, row) => {
-                if (!acc[row.factor_id]) {
-                    acc[row.factor_id] = {
-                        factor_id: row.factor_id,
-                        factor_name: row.factor_name,
-                        subfactors: {},
-                    };
+            const dataMap = {};
+
+            rows.forEach((row) => {
+                if (row.subsubfactor_id !== null) {
+                    if (!dataMap[row.factor_id]) {
+                        dataMap[row.factor_id] = {
+                            factor_id: row.factor_id,
+                            factor_name: row.factor_name,
+                            subfactors: [],
+                        };
+                    }
+
+                    if (!dataMap[row.factor_id].subfactors.find((sf) => sf.subfactor_id === row.subfactor_id)) {
+                        dataMap[row.factor_id].subfactors.push({
+                            subfactor_id: row.subfactor_id,
+                            subfactor_name: row.subfactor_name,
+                            subsubfactors: [],
+                        });
+                    }
+
+                    dataMap[row.factor_id].subfactors.forEach((sf) => {
+                        if (sf.subfactor_id === row.subfactor_id) {
+                            sf.subsubfactors.push({
+                                subsubfactor_id: row.subsubfactor_id,
+                                subsubfactor_name: row.subsubfactor_name,
+                                emission_factor: row.emission_factor,
+                                description: row.description,
+                                unit: row.unit,
+                            });
+                        }
+                    });
                 }
+            });
 
-                if (!acc[row.factor_id].subfactors[row.subfactor_id]) {
-                    acc[row.factor_id].subfactors[row.subfactor_id] = {
-                        subfactor_id: row.subfactor_id,
-                        subfactor_name: row.subfactor_name,
-                        subsubfactors: [],
-                    };
-                }
+            // Convert the map to an array for the response
+            const responseData = Object.values(dataMap);
 
-                acc[row.factor_id].subfactors[row.subfactor_id].subsubfactors.push({
-                    subsubfactor_id: row.subsubfactor_id,
-                    subsubfactor_name: row.subsubfactor_name,
-                    emission_factor: row.emission_factor,
-                    description: row.description,
-                    unit: row.unit,
-                });
-
-                return acc;
-            }, {});
-
-            res.json(rows);
+            res.json(responseData);
         } catch (error) {
             console.error(error);
             res.status(500).json({ msg: 'Internal server error' });
