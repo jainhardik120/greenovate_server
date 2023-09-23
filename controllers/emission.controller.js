@@ -98,6 +98,50 @@ const emissionController = {
             console.error(error);
             res.status(500).json({ msg: 'Internal server error' });
         }
+    },
+    detailedReport: async (req, res, next) => {
+        try {
+            const organizationId = req.orgId;
+            const year = req.query.year; 
+
+            if (!year) {
+                return res.status(400).json({ msg: 'Year is required' });
+            }
+
+            const recordsQuery = `
+            SELECT er.record_year, ssf.name AS subsubfactor_name, sf.name AS subfactor_name, f.name AS factor_name, er.input_value, er.net_emission
+            FROM EmissionRecord er
+            JOIN SubSubFactor ssf ON er.subsubfactor_id = ssf.id
+            JOIN SubFactor sf ON ssf.sub_factor_id = sf.id
+            JOIN Factor f ON sf.factor_id = f.id
+            WHERE er.organization_id = $1 AND er.record_year = $2
+          `;
+
+            const { rows: records } = await pool.query(recordsQuery, [organizationId, year]);
+
+            const factorSumQuery = `
+            SELECT f.id AS factor_id, f.name AS factor_name, SUM(er.net_emission) AS total_emission
+            FROM EmissionRecord er
+            JOIN SubSubFactor ssf ON er.subsubfactor_id = ssf.id
+            JOIN SubFactor sf ON ssf.sub_factor_id = sf.id
+            JOIN Factor f ON sf.factor_id = f.id
+            WHERE er.organization_id = $1 AND er.record_year = $2
+            GROUP BY f.id, f.name
+          `;
+
+            const { rows: factorSums } = await pool.query(factorSumQuery, [organizationId, year]);
+
+            const yearData = {
+                year: parseInt(year),
+                emissionRecords: records,
+                factorSummaries: factorSums,
+            };
+
+            res.json(yearData);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ msg: 'Internal server error' });
+        }
     }
 
 }
